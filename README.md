@@ -1,2 +1,2 @@
 # CathayMR
-An iOS project for customer testing
+An iOS project for customer test
