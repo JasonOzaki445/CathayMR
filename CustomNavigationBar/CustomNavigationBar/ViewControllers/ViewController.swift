@@ -36,6 +36,7 @@ class ViewController: UIViewController {
     //
     // MARK: - Variables And Properties
     //
+    var cellHeightsDictionary: [Int: CGFloat] = [:]
     /// The last known the scroll position. Initial is equal to 0.
     var previousScrollOffset: CGFloat = 0
     /// The last known height of the scroll view content. Initial is equal to 0.
@@ -58,7 +59,7 @@ class ViewController: UIViewController {
         
         self.tableView.dataSource = self
         self.tableView.delegate = self
-        self.tableView.estimatedRowHeight = 108.0
+        self.tableView.estimatedRowHeight = 108
         self.tableView.rowHeight = UITableView.automaticDimension
         
         // Start with an initial value for the content size.
@@ -93,8 +94,7 @@ class ViewController: UIViewController {
             if let results = results {
                 self?.searchResults = results
                 self!.isLoadNextPageing = false
-                self?.tableView.reloadData()
-//                self?.tableView.setContentOffset(CGPoint.zero, animated: false)
+                self!.tableView.reloadData()
             }
             
             if !errorMessage.isEmpty {
@@ -114,6 +114,15 @@ extension ViewController: UITableViewDataSource {
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return searchResults?.results.count ?? 0
+    }
+    
+    func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        cellHeightsDictionary[indexPath.row] = cell.frame.size.height
+    }
+
+    func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
+        let height = cellHeightsDictionary[indexPath.row]
+        return height ?? UITableView.automaticDimension
     }
     
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
@@ -159,7 +168,7 @@ extension ViewController: UITableViewDataSource {
         
         var canAppand = false
         if !isLoadNextPageing && offset < amountCount && currentIndex == recordSetIndex {
-            canAppand =  true
+            canAppand = true
         }
         return canAppand
     }
@@ -175,10 +184,9 @@ extension ViewController: UITableViewDelegate {
             self.previousScrollViewHeight = scrollView.contentSize.height
             self.previousScrollOffset = scrollView.contentOffset.y
         }
-        
+
         let heightDiff = scrollView.contentSize.height - self.previousScrollViewHeight
-        let scrollDiff = (scrollView.contentOffset.y - self.previousScrollOffset)
-        
+        let scrollDiff = scrollView.contentOffset.y - self.previousScrollOffset
         // If the scroll was caused by the height of the scroll view changing, we want to do nothing.
         guard heightDiff == 0 else {
             return
@@ -186,24 +194,33 @@ extension ViewController: UITableViewDelegate {
         
         let absoluteTop: CGFloat = 0;
         let absoluteBottom: CGFloat = scrollView.contentSize.height - scrollView.frame.size.height
-        
-        let isScrollingDown = scrollDiff > 0 && scrollView.contentOffset.y > absoluteTop
-        let isScrollingUp = scrollDiff < 0 && scrollView.contentOffset.y < absoluteBottom
+        let yPosition: CGFloat = scrollView.contentOffset.y
+        let isScrollingDown = scrollDiff > 0 && yPosition > absoluteTop
+        let isScrollingUp = scrollDiff < 0 && yPosition < absoluteBottom
+        /*
+         When we use UITableView.automaticDimension and after reloading the data, the scrollView contentOffset.y value
+         will be incorrect. So, when the scrollView contentOffset.y is less than or equal to 8 and the scroll direction
+         is scrolling up, we can think of it as scrolling to the top.
+         Why use 8? Because we're scrolling the tableView more smoothly.
+        */
+        let isScrollToTop = yPosition <= 8 && isScrollingUp
         
         if canAnimateHeader(scrollView) {
-            // Calculate new header height.
-            var newHeight = self.headerHeightConstraint.constant
-            if isScrollingDown {
-                newHeight = max(self.minHeaderHeight, self.headerHeightConstraint.constant - abs(scrollDiff))
-            } else if isScrollingUp {
-                newHeight = min(self.maxHeaderHeight, self.headerHeightConstraint.constant + abs(scrollDiff))
-            }
-            
-            // Header needs to animate.
-            if newHeight != self.headerHeightConstraint.constant {
-                self.headerHeightConstraint.constant = newHeight
-                self.updateHeader()
-                self.setScrollPosition(self.previousScrollOffset)
+            if isScrollingDown || isScrollToTop {
+                // Calculate new header height.
+                var newHeight = self.headerHeightConstraint.constant
+                if isScrollingDown {
+                    newHeight = max(self.minHeaderHeight, self.headerHeightConstraint.constant - abs(scrollDiff))
+                } else if isScrollingUp {
+                    newHeight = min(self.maxHeaderHeight, self.headerHeightConstraint.constant + abs(scrollDiff))
+                }
+                
+                // Header needs to animate.
+                if newHeight != self.headerHeightConstraint.constant {
+                    self.headerHeightConstraint.constant = newHeight
+                    self.updateHeader()
+                    self.setScrollPosition(self.previousScrollOffset)
+                }
             }
         }
     }

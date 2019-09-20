@@ -82,10 +82,15 @@ class ApiAccess {
     private func updateSearchResults(_ data: Data) {
         var response: JSONDictionary?
         var newPlants: [Plant] = []
+        // Creating a new array by adding two arrays: one is an empty array, another one is old records array
+        let emptyArray: [Plant] = []
+        newPlants = emptyArray + (plants?.results ?? [])
+        /*
         for plant in plants?.results ?? [] {
-            // Copy the privous records from old arry to new array
+            // Copy the previous records from old arry to new array
             newPlants.append(Plant(F_Name_Ch: plant.F_Name_Ch, F_Location: plant.F_Location ?? "", F_Feature: plant.F_Feature ?? "", F_Pic01_URL: plant.F_Pic01_URL ?? ""))
         }
+        */
         // Remove all records from old array
         plants?.results.removeAll()
         
