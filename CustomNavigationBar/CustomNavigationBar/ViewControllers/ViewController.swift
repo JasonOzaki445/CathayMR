@@ -43,6 +43,8 @@ class ViewController: UIViewController {
     var previousScrollViewHeight: CGFloat = 0
     /// Array initialization of search results
     var searchResults: Plants?
+    /// Array initialization of all results for pre-load images
+    var preLoadAllResults: Plants?
     /// The last known the previous record count. Initial is equal to 0.
     var offset: Int = 0
     var isLoadNextPageing: Bool = false
@@ -57,6 +59,7 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        self.getAllPlants()
         self.tableView.dataSource = self
         self.tableView.delegate = self
         self.tableView.estimatedRowHeight = 108
@@ -78,7 +81,9 @@ class ViewController: UIViewController {
         super.viewDidAppear(animated)
         
         var statusBarView: UIView
+        /// Detect the device's iOS version.
         if #available(iOS 13.0, *) {
+            // Set this tag id so that the same statusBar can be found out the following process.
             let tag = 38482458385
             if let statusBar = UIApplication.shared.keyWindow?.viewWithTag(tag) {
                 statusBarView = statusBar
@@ -110,6 +115,34 @@ class ViewController: UIViewController {
                 self?.searchResults = results
                 self!.isLoadNextPageing = false
                 self!.tableView.reloadData()
+            }
+            
+            if !errorMessage.isEmpty {
+                print("Search error: " + errorMessage)
+            }
+        }
+    }
+    
+    //
+    // MARK: - Private Method for API Search for all results
+    //
+    func getAllPlants() {
+        apiAccess.getSearchResults(countLimitPerPage: 0, offset: offset) { [weak self] results, errorMessage in
+            if let results = results {
+                self?.preLoadAllResults = results
+                // for - in to load all image
+                for imageItem in (self?.preLoadAllResults?.results ?? nil)! {
+                    if imageItem.F_Pic01_URL?.count ?? 0 > 0 {
+                        let imageURL = NSURL(string: imageItem.F_Pic01_URL ?? "")
+                        if let imagedData = try? Data(contentsOf: imageURL! as URL) {
+                            if let image = UIImage(data: imagedData) {
+                                let imageView = UIImageView(image: image)
+                                imageView.frame = CGRect(x: 0, y: -200, width: 120, height: 80)
+                                self?.view.addSubview(imageView)
+                            }
+                        }
+                    }
+                }
             }
             
             if !errorMessage.isEmpty {
@@ -296,9 +329,12 @@ extension ViewController: UITableViewDelegate {
         let openAmount = self.headerHeightConstraint.constant - self.minHeaderHeight
         let percentage = openAmount / range
         let reductionPercentage = (percentage * 0.27) + 0.74
-        
+
         var statusBarView: UIView
+        // Detect the device's iOS version.
         if #available(iOS 13.0, *) {
+            // Use this tag id to find out the same statusBar that it be created when viewDidAppear,
+            // then we can change its background.
             let tag = 38482458385
             if let statusBar = UIApplication.shared.keyWindow?.viewWithTag(tag) {
                 statusBarView = statusBar

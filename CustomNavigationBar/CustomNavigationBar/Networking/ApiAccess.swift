@@ -26,6 +26,7 @@ class ApiAccess {
     var dataTask: URLSessionDataTask?
     var errorMessage = ""
     var plants: Plants?
+    var allPlants: Plants?
     
     //
     // MARK: - Type Alias
@@ -42,7 +43,11 @@ class ApiAccess {
         
         // 2
         if var urlComponents = URLComponents(string: apiBaseUrl) {
-            urlComponents.query = "scope=resourceAquire&rid=f18de02f-b6c9-47c0-8cda-50efad621c14&limit=\(countLimitPerPage)&offset=\(offset)"
+            if (countLimitPerPage == 0) {
+                urlComponents.query = "scope=resourceAquire&rid=f18de02f-b6c9-47c0-8cda-50efad621c14"
+            } else {
+                urlComponents.query = "scope=resourceAquire&rid=f18de02f-b6c9-47c0-8cda-50efad621c14&limit=\(countLimitPerPage)&offset=\(offset)"
+            }
             
             // 3
             guard let url = urlComponents.url else {
@@ -62,7 +67,11 @@ class ApiAccess {
                     let data = data,
                     let response = response as? HTTPURLResponse, response.statusCode == 200 {
                     print(response)
-                    self?.updateSearchResults(data)
+                    if (countLimitPerPage == 0) {
+                        self?.updateSearchAllResults(data)
+                    } else {
+                        self?.updateSearchResults(data)
+                    }
                     
                     // 6
                     DispatchQueue.main.async {
@@ -85,12 +94,7 @@ class ApiAccess {
         // Creating a new array by adding two arrays: one is an empty array, another one is old records array
         let emptyArray: [Plant] = []
         newPlants = emptyArray + (plants?.results ?? [])
-        /*
-        for plant in plants?.results ?? [] {
-            // Copy the previous records from old arry to new array
-            newPlants.append(Plant(F_Name_Ch: plant.F_Name_Ch, F_Location: plant.F_Location ?? "", F_Feature: plant.F_Feature ?? "", F_Pic01_URL: plant.F_Pic01_URL ?? ""))
-        }
-        */
+        
         // Remove all records from old array
         plants?.results.removeAll()
         
@@ -134,5 +138,57 @@ class ApiAccess {
         }
     
         plants = Plants(limit: varLimit, offset: varOffset, count: varCount, sort: varSort, results: varPlants)
+    }
+    
+    private func updateSearchAllResults(_ data: Data) {
+        var response: JSONDictionary?
+        var newPlants: [Plant] = []
+        // Creating a new array by adding two arrays: one is an empty array, another one is old records array
+        let emptyArray: [Plant] = []
+        newPlants = emptyArray + (allPlants?.results ?? [])
+        
+        // Remove all records from old array
+        allPlants?.results.removeAll()
+        
+        do {
+            response = try JSONSerialization.jsonObject(with: data, options: []) as? JSONDictionary
+        } catch let parseError as NSError {
+            errorMessage += "JSONSerialization error: \(parseError.localizedDescription)\n"
+            return
+        }
+        
+        guard let result = response!["result"] as? JSONDictionary else {
+            errorMessage += "Dictionary does not contain result key\n"
+            return
+        }
+        
+        var varLimit: Int = 0
+        var varOffset: Int = 0
+        var varCount: Int = 0
+        var varSort: String = ""
+        var varPlants: [Plant] = []
+        if let limit = result["limit"] as? Int,
+            let offset = result["offset"] as? Int,
+            let count = result["count"] as? Int,
+            let sort = result["sort"] as? String,
+            let plants = result["results"] as? [JSONDictionary] {
+            varLimit = limit
+            varOffset = offset
+            varCount = count
+            varSort = sort
+            for plantsDictionary in plants {
+                let F_Name_Ch = plantsDictionary["F_Name_Ch"] as? String ?? ""
+                let F_Location = plantsDictionary["F_Location"] as? String ?? ""
+                let F_Feature = plantsDictionary["F_Feature"] as? String ?? ""
+                let F_Pic01_URL = plantsDictionary["F_Pic01_URL"] as? String ?? ""
+                // Append new records
+                newPlants.append(Plant(F_Name_Ch: F_Name_Ch, F_Location: F_Location, F_Feature: F_Feature, F_Pic01_URL: F_Pic01_URL))
+            }
+            varPlants = newPlants
+        } else {
+            errorMessage += "Problem parsing resultDictionary\n"
+        }
+    
+        allPlants = Plants(limit: varLimit, offset: varOffset, count: varCount, sort: varSort, results: varPlants)
     }
 }
