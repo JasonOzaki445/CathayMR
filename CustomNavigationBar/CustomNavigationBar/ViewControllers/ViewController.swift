@@ -70,13 +70,28 @@ class ViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         
-        guard let statusBarView = UIApplication.shared.value(forKeyPath: "statusBarWindow.statusBar") as? UIView else {
-            return
+        self.headerHeightConstraint.constant = self.maxHeaderHeight
+        self.getPlants(offset)
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        var statusBarView: UIView
+        if #available(iOS 13.0, *) {
+            let tag = 38482458385
+            if let statusBar = UIApplication.shared.keyWindow?.viewWithTag(tag) {
+                statusBarView = statusBar
+            } else {
+                let statusBar = UIView(frame: UIApplication.shared.statusBarFrame)
+                statusBar.tag = tag
+                UIApplication.shared.keyWindow?.addSubview(statusBar)
+                statusBarView = statusBar
+            }
+        } else {
+            statusBarView = UIApplication.shared.value(forKeyPath: "statusBarWindow.statusBar") as! UIView
         }
         statusBarView.backgroundColor = UIColor.init(red: 88 / 255, green: 144 / 255, blue: 253 / 255, alpha: 1)
-        self.headerHeightConstraint.constant = self.maxHeaderHeight
-        
-        self.getPlants(offset)
     }
     
     //
@@ -282,8 +297,19 @@ extension ViewController: UITableViewDelegate {
         let percentage = openAmount / range
         let reductionPercentage = (percentage * 0.27) + 0.74
         
-        guard let statusBarView = UIApplication.shared.value(forKeyPath: "statusBarWindow.statusBar") as? UIView else {
-            return
+        var statusBarView: UIView
+        if #available(iOS 13.0, *) {
+            let tag = 38482458385
+            if let statusBar = UIApplication.shared.keyWindow?.viewWithTag(tag) {
+                statusBarView = statusBar
+            } else {
+                let statusBar = UIView(frame: UIApplication.shared.statusBarFrame)
+                statusBar.tag = tag
+                UIApplication.shared.keyWindow?.addSubview(statusBar)
+                statusBarView = statusBar
+            }
+        } else {
+            statusBarView = UIApplication.shared.value(forKeyPath: "statusBarWindow.statusBar") as! UIView
         }
         statusBarView.backgroundColor = UIColor.init(red: 88 / 255,
                                                      green: 144 / 255,
